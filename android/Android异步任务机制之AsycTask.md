@@ -178,5 +178,17 @@ t.execute();//这里没有参数
 
  - 对于想要立即开始执行的异步任务，要么直接使用Thread，要么单独创建线程池提供给AsyncTask。默认的AsyncTask不一定会立即执行你的任务，除非你提供给他一个单独的线程池。如果不与主线程交互，直接创建一个Thread就可以了。
 
- 　　
+##
 
+AsyncTask使用起来比较轻量，但是其自身也存在一些问题。主要表现在 
+
+  1.cancel方法实现不是很好.
+
+  如果你调用了AsyncTask的cancel(false)，doInBackground()仍然会执行到方法结束，只是不会去调用onPostExecute()方法。但是实际上这是让应用程序执行了没有意义的操作。那么是不是我们调用cancel(true)前面的问题就能解决呢？并非如此。如果mayInterruptIfRunning设置为true，会使任务尽早结束，但是如果的doInBackground()有不可打断的方法会失效，比如这个BitmapFactory.decodeStream()
+  IO操作。但是你可以提前关闭IO流并捕获这样操作抛出的异常。但是这样会使得cancel()方法没有任何意义 
+
+  2.内存泄露问题 
+  还有一种常见的情况就是，在Activity中使用非静态匿名内部AsyncTask类，由于Java内部类的特点，AsyncTask内部类会持有外部类的隐式引用。由于AsyncTask的生命周期可能比Activity的长，当Activity进行销毁AsyncTask还在执行时，由于AsyncTask持有Activity的引用，导致Activity对象无法回收，进而产生内存泄露。
+  
+  3.结果丢失  
+    另一个问题就是在屏幕旋转等造成Activity重新创建时AsyncTask数据丢失的问题。当Activity销毁并创新创建后，还在运行的AsyncTask会持有一个Activity的非法引用即之前的Activity实例。导致onPostExecute()没有任何作用。
